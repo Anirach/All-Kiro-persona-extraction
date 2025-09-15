@@ -1,0 +1,59 @@
+# Code owners for this repository
+# Format: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global fallback - owner reviews everything not covered below
+* @Anirach
+
+# Repository governance and configuration
+/.github/ @Anirach
+/GITHUB_RULES.md @Anirach
+/Spec.md @Anirach
+/.gitignore @Anirach
+/README.md @Anirach
+
+# Database and schema changes (critical for data integrity)
+/prisma/ @Anirach
+*.prisma @Anirach
+
+# Environment and configuration
+/.env.example @Anirach
+/package.json @Anirach
+/package-lock.json @Anirach
+**/package.json @Anirach
+**/package-lock.json @Anirach
+
+# Security and compliance files
+/.github/workflows/security.yml @Anirach
+/.github/codeql-config.yml @Anirach
+/.github/dependabot.yml @Anirach
+
+# CI/CD workflows (affects build and deployment)
+/.github/workflows/ @Anirach
+
+# Core application directories (when they exist)
+/frontend/ @Anirach
+/backend/ @Anirach
+/server/ @Anirach
+/api/ @Anirach
+/apps/ @Anirach
+
+# Documentation that affects system behavior
+/docs/ @Anirach
+
+# TypeScript configuration
+/tsconfig.json @Anirach
+**/tsconfig.json @Anirach
+
+# Linting and code quality
+/.eslintrc* @Anirach
+/.prettierrc* @Anirach
+**/.eslintrc* @Anirach
+**/.prettierrc* @Anirach
+
+# Build and deployment configuration
+/Dockerfile @Anirach
+/docker-compose.yml @Anirach
+/.dockerignore @Anirach
+
+# License and legal
+/LICENSE @Anirach

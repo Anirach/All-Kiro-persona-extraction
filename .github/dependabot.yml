@@ -1,0 +1,154 @@
+version: 2
+updates:
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+      timezone: "Asia/Bangkok"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(actions)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  # Root package.json (if exists)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "03:00"
+      timezone: "Asia/Bangkok"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps(root)"
+      include: "scope"
+    versioning-strategy: "increase"
+    labels:
+      - "dependencies"
+      - "npm"
+
+  # Frontend dependencies
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "03:00"
+      timezone: "Asia/Bangkok"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps(frontend)"
+      include: "scope"
+    versioning-strategy: "increase"
+    labels:
+      - "dependencies"
+      - "frontend"
+      - "npm"
+    ignore:
+      # Ignore major version updates for these critical packages
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+
+  # Backend dependencies
+  - package-ecosystem: "npm"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "03:00"
+      timezone: "Asia/Bangkok"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps(backend)"
+      include: "scope"
+    versioning-strategy: "increase"
+    labels:
+      - "dependencies"
+      - "backend"
+      - "npm"
+    ignore:
+      # Ignore major version updates for critical backend packages
+      - dependency-name: "prisma"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
+
+  # Server dependencies (alternative backend path)
+  - package-ecosystem: "npm"
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "03:00"
+      timezone: "Asia/Bangkok"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps(server)"
+      include: "scope"
+    versioning-strategy: "increase"
+    labels:
+      - "dependencies"
+      - "server"
+      - "npm"
+
+  # API dependencies (alternative backend path)
+  - package-ecosystem: "npm"
+    directory: "/api"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "03:00"
+      timezone: "Asia/Bangkok"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps(api)"
+      include: "scope"
+    versioning-strategy: "increase"
+    labels:
+      - "dependencies"
+      - "api"
+      - "npm"
+
+  # Apps structure - Frontend
+  - package-ecosystem: "npm"
+    directory: "/apps/frontend"
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+      time: "03:00"
+      timezone: "Asia/Bangkok"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps(apps/frontend)"
+      include: "scope"
+    versioning-strategy: "increase"
+    labels:
+      - "dependencies"
+      - "frontend"
+      - "npm"
+
+  # Apps structure - Backend
+  - package-ecosystem: "npm"
+    directory: "/apps/backend"
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+      time: "03:00"
+      timezone: "Asia/Bangkok"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps(apps/backend)"
+      include: "scope"
+    versioning-strategy: "increase"
+    labels:
+      - "dependencies"
+      - "backend"
+      - "npm"

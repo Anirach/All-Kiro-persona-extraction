@@ -1,0 +1,32 @@
+name: "CodeQL Config"
+
+queries:
+  - uses: security-extended
+  - uses: security-and-quality
+
+paths-ignore:
+  - node_modules
+  - "**/node_modules"
+  - dist
+  - "**/dist"
+  - build
+  - "**/build"
+  - .next
+  - "**/.next"
+  - coverage
+  - "**/coverage"
+  - "**/*.test.ts"
+  - "**/*.test.js"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "**/*.spec.js"
+  - "**/*.spec.tsx"
+  - "**/*.config.js"
+  - "**/*.config.ts"
+
+paths:
+  - packages/backend/src
+  - packages/frontend/src
+  - packages/shared/src
+
+disable-default-queries: false

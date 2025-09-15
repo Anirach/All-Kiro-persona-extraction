@@ -1,0 +1,43 @@
+{
+  "name": "persona-extraction-platform",
+  "version": "1.0.0",
+  "description": "Web Application Platform for Traceable, Evidence-Bound Persona Extraction",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm run dev --workspace=packages/backend",
+    "dev:frontend": "npm run dev --workspace=packages/frontend",
+    "build": "npm run build --workspace=packages/backend && npm run build --workspace=packages/frontend",
+    "build:backend": "npm run build --workspace=packages/backend",
+    "build:frontend": "npm run build --workspace=packages/frontend",
+    "test": "npm run test --workspace=packages/backend && npm run test --workspace=packages/frontend && npm run test --workspace=packages/shared",
+    "test:backend": "npm run test --workspace=packages/backend",
+    "test:frontend": "npm run test --workspace=packages/frontend",
+    "test:shared": "npm run test --workspace=packages/shared",
+    "test:coverage": "npm run test:coverage --workspace=packages/backend && npm run test:coverage --workspace=packages/frontend",
+    "test:coverage:check": "npm run test:coverage:check --workspace=packages/backend",
+    "test:integration": "npm run test:integration --workspace=packages/backend",
+    "test:e2e": "npm run test:e2e --workspace=packages/frontend",
+    "test:performance": "npm run test:performance --workspace=packages/backend",
+    "lint": "npm run lint --workspace=packages/backend && npm run lint --workspace=packages/frontend && npm run lint --workspace=packages/shared",
+    "lint:fix": "npm run lint:fix --workspace=packages/backend && npm run lint:fix --workspace=packages/frontend && npm run lint:fix --workspace=packages/shared",
+    "type-check": "npm run type-check --workspace=packages/backend && npm run type-check --workspace=packages/frontend && npm run type-check --workspace=packages/shared",
+    "clean": "npm run clean --workspace=packages/backend && npm run clean --workspace=packages/frontend && npm run clean --workspace=packages/shared",
+    "db:migrate": "npm run db:migrate --workspace=packages/backend",
+    "db:reset": "npm run db:reset --workspace=packages/backend",
+    "db:seed": "npm run db:seed --workspace=packages/backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "author": "Persona Extraction Team",
+  "license": "MIT"
+}

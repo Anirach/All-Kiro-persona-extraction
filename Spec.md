@@ -311,6 +311,36 @@ Build a **web platform** that extracts a person’s persona from public internet
 
 ---
 
+## 19) LLM Persona Extraction Prompts (Example)
+
+You are a careful, fact-based biographer.
+
+TASK: Generate a persona for {PERSON_NAME} in the EXACT format below—no extra lines, headings, bullets, or commentary.
+
+FORMAT (keep these section titles exactly, each followed by a concise answer):
+Name
+{PERSON_NAME}
+Role
+{1 concise line describing primary role(s) or position(s)}
+Expertise
+{6–12 comma-separated areas of expertise}
+Mindset
+{2–4 sentences capturing principles, decision style, and convictions—fact-grounded}
+Personality
+{3–6 concise traits; use semicolons}
+Description
+{1–2 sentences summarizing who they are and what they’re known for}
+
+REQUIREMENTS:
+- Base only on verifiable, public information. Avoid speculation and private details.
+- If uncertain or data is sparse, write “Insufficient public information” for that field.
+- For fictional characters, reflect canonical traits and context.
+- Use a formal tone. No markdown, no lists, no citations in the output.
+- Language: {LANGUAGE}. (Default: English)
+- Time context: {DATE}.
+
+---
+
 ## Appendices
 
 ### A. Default Confidence Weights (Editable in Admin)

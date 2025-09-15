@@ -1,0 +1,161 @@
+name: Repository Rules
+
+on:
+  pull_request:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  governance-check:
+    name: Repository Governance Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify required governance files
+        run: |
+          echo "🔍 Checking required governance files..."
+          
+          required_files=(
+            ".github/CODEOWNERS"
+            ".github/pull_request_template.md"
+            ".github/ISSUE_TEMPLATE/bug_report.md"
+            ".github/ISSUE_TEMPLATE/feature_request.md"
+            "GITHUB_RULES.md"
+            ".github/workflows/ci.yml"
+            ".github/workflows/security.yml"
+          )
+          
+          missing=()
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$file" ]; then
+              missing+=("$file")
+              echo "❌ Missing: $file"
+            else
+              echo "✅ Found: $file"
+            fi
+          done
+          
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo ""
+            echo "💥 Missing required governance files:"
+            printf '%s\n' "${missing[@]}"
+            echo ""
+            echo "Please add these files to maintain repository governance standards."
+            exit 1
+          fi
+          
+          echo ""
+          echo "🎉 All required governance files are present!"
+
+      - name: Verify Prisma schema validity
+        run: |
+          if [ -f "prisma/schema.prisma" ]; then
+            echo "🔍 Checking Prisma schema..."
+            
+            # Check for required datasource
+            if ! grep -q "datasource db" prisma/schema.prisma; then
+              echo "❌ Prisma schema missing datasource configuration"
+              exit 1
+            fi
+            
+            # Check for required generator
+            if ! grep -q "generator client" prisma/schema.prisma; then
+              echo "❌ Prisma schema missing client generator"
+              exit 1
+            fi
+            
+            # Check for SQLite provider as per project requirements
+            if ! grep -q 'provider.*=.*"sqlite"' prisma/schema.prisma; then
+              echo "⚠️ Warning: Prisma schema should use SQLite provider for this project"
+            fi
+            
+            echo "✅ Prisma schema structure looks valid"
+          else
+            echo "ℹ️ No Prisma schema found, skipping validation"
+          fi
+
+      - name: Check for sensitive files
+        run: |
+          echo "🔍 Checking for sensitive files that shouldn't be committed..."
+          
+          sensitive_patterns=(
+            ".env"
+            "*.key"
+            "*.pem"
+            "**/node_modules"
+            "**/.DS_Store"
+            "*.log"
+            "coverage/"
+            "dist/"
+            "build/"
+            "*.sqlite"
+            "*.db"
+          )
+          
+          found_sensitive=false
+          for pattern in "${sensitive_patterns[@]}"; do
+            if find . -name "$pattern" -not -path "./.git/*" | head -1 | grep -q .; then
+              echo "❌ Found sensitive file pattern: $pattern"
+              find . -name "$pattern" -not -path "./.git/*" | head -5
+              found_sensitive=true
+            fi
+          done
+          
+          if [ "$found_sensitive" = true ]; then
+            echo ""
+            echo "💥 Sensitive files detected! Please remove them and add to .gitignore"
+            exit 1
+          fi
+          
+          echo "✅ No sensitive files detected"
+
+      - name: Verify package.json scripts consistency
+        run: |
+          echo "🔍 Checking package.json scripts consistency..."
+          
+          expected_scripts=("lint" "build" "test")
+          
+          for dir in frontend backend server api apps/frontend apps/backend; do
+            if [ -f "$dir/package.json" ]; then
+              echo "Checking $dir/package.json..."
+              
+              for script in "${expected_scripts[@]}"; do
+                if ! grep -q "\"$script\":" "$dir/package.json"; then
+                  echo "⚠️ Warning: $dir/package.json missing '$script' script"
+                fi
+              done
+              
+              # Check for TypeScript
+              if grep -q "typescript" "$dir/package.json"; then
+                if ! grep -q "\"type-check\":" "$dir/package.json"; then
+                  echo "⚠️ Warning: $dir has TypeScript but no 'type-check' script"
+                fi
+              fi
+            fi
+          done
+          
+          echo "✅ Package.json scripts check completed"
+
+      - name: Check commit message format (for PRs)
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "🔍 Checking PR title format..."
+          
+          # Get PR title
+          pr_title="${{ github.event.pull_request.title }}"
+          
+          # Check if title follows conventional commits format
+          if [[ ! "$pr_title" =~ ^(feat|fix|docs|style|refactor|test|chore|ci|perf|revert)(\(.+\))?:\ .+ ]]; then
+            echo "⚠️ Warning: PR title should follow Conventional Commits format"
+            echo "Examples: feat: add user authentication, fix: resolve login issue"
+            echo "Current title: $pr_title"
+          else
+            echo "✅ PR title follows Conventional Commits format"
+          fi

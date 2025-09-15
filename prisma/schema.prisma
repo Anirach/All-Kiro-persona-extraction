@@ -1,0 +1,105 @@
+// Prisma schema for SQLite (MVP minimal tables based on Spec)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id           String   @id @default(cuid())
+  title        String
+  subjectType  String   // real | fictional
+  languages    String   // comma-separated for MVP
+  createdBy    String
+  createdAt    DateTime @default(now())
+  runs         Run[]
+  claimFields  ClaimField[]
+  exports      Export[]
+}
+
+model Run {
+  id            String   @id @default(cuid())
+  project       Project  @relation(fields: [projectId], references: [id])
+  projectId     String
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+  params        String   // JSON string (MVP)
+  searchQueries String   // JSON string (MVP)
+  sources       Source[]
+}
+
+model Source {
+  id           String  @id @default(cuid())
+  run          Run     @relation(fields: [runId], references: [id])
+  runId        String
+  url          String
+  domain       String
+  tier         Int
+  title        String
+  fetchTime    DateTime
+  contentHash  String
+  textRaw      String
+  textNorm     String
+  units        EvidenceUnit[]
+}
+
+model EvidenceUnit {
+  id            String  @id @default(cuid())
+  source        Source  @relation(fields: [sourceId], references: [id])
+  sourceId      String
+  charStart     Int
+  charEnd       Int
+  snippet       String
+  topicCandidates String // JSON string (MVP)
+  qualityScore  Float
+  citations     Citation[]
+}
+
+model ClaimField {
+  id             String   @id @default(cuid())
+  project        Project  @relation(fields: [projectId], references: [id])
+  projectId      String
+  name           String   // Name | Role | Expertise | Mindset | Personality | Description
+  text           String
+  sentenceSpans  String   // JSON string (MVP)
+  citations      Citation[]
+  confidence     Confidence?
+  conflictNotes  ConflictNote[]
+}
+
+model Citation {
+  id              String       @id @default(cuid())
+  claimField      ClaimField   @relation(fields: [claimFieldId], references: [id])
+  claimFieldId    String
+  sentenceIndex   Int
+  evidenceUnitIds String       // JSON array of EvidenceUnit IDs (MVP)
+}
+
+model Confidence {
+  claimField    ClaimField @relation(fields: [claimFieldId], references: [id])
+  claimFieldId  String     @id
+  value         Float
+  components    String     // JSON string (agreement, evidence_count, source_quality, recency)
+}
+
+model ConflictNote {
+  id             String     @id @default(cuid())
+  claimField     ClaimField @relation(fields: [claimFieldId], references: [id])
+  claimFieldId   String
+  type           String
+  description    String
+  implicated     String // JSON string of source IDs
+}
+
+model Export {
+  id         String   @id @default(cuid())
+  project    Project  @relation(fields: [projectId], references: [id])
+  projectId  String
+  type       String
+  fileUri    String
+  checksum   String
+  createdAt  DateTime @default(now())
+}
