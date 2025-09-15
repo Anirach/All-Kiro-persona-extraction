@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { env } from '../config/env';
+import { config } from '../config/env';
 
 declare global {
   // Prevent multiple instances during hot reload in development
@@ -11,22 +11,22 @@ declare global {
  * Includes connection pooling, logging, and error handling
  */
 export const prisma = globalThis.__prisma || new PrismaClient({
-  log: env.NODE_ENV === 'development' 
+  log: config.NODE_ENV === 'development' 
     ? ['query', 'info', 'warn', 'error']
     : ['error'],
   
   datasources: {
     db: {
-      url: env.DATABASE_URL,
+      url: config.DATABASE_URL,
     },
   },
   
   // Error formatting for better debugging
-  errorFormat: env.NODE_ENV === 'development' ? 'pretty' : 'minimal',
+  errorFormat: config.NODE_ENV === 'development' ? 'pretty' : 'minimal',
 });
 
 // Store in global for development hot reload
-if (env.NODE_ENV === 'development') {
+if (config.NODE_ENV === 'development') {
   globalThis.__prisma = prisma;
 }
 
