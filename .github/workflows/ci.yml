@@ -198,7 +198,7 @@ jobs:
         run: npm run test:e2e --workspace=packages/frontend
 
       - name: Upload E2E results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: e2e-results
@@ -278,7 +278,7 @@ jobs:
         run: npm run test:performance --workspace=packages/backend
 
       - name: Upload performance results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: performance-results
           path: packages/backend/performance-results/
