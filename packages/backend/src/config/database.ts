@@ -8,9 +8,9 @@ const databaseConfig = {
       url: config.DATABASE_URL,
     },
   },
-  log: isDevelopment ? ['query', 'info', 'warn', 'error'] : ['error'],
-  errorFormat: isDevelopment ? 'pretty' : 'minimal',
-} as const;
+  log: isDevelopment ? ['query', 'info', 'warn', 'error'] as any : ['error'] as any,
+  errorFormat: (isDevelopment ? 'pretty' : 'minimal') as 'pretty' | 'minimal',
+};
 
 // Global prisma instance for development hot reloading
 declare global {
@@ -91,7 +91,7 @@ export async function checkDatabaseHealth(): Promise<boolean> {
 
 // Transaction helper with retry logic
 export async function withTransaction<T>(
-  fn: (prisma: PrismaClient) => Promise<T>,
+  fn: (prisma: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>) => Promise<T>,
   maxRetries = 3
 ): Promise<T> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {

@@ -593,20 +593,28 @@ export class TopicService {
     
     // Sum vectors for each cluster
     vectors.forEach((vector, index) => {
-      const cluster = assignments.get(ids[index]) || 0;
+      const id = ids[index];
+      if (!id) return;
+      
+      const cluster = assignments.get(id) || 0;
       clusterCounts[cluster]++;
       
-      vector.forEach((value, dim) => {
-        centroids[cluster][dim] += value;
+      vector?.forEach((value, dim) => {
+        const centroid = centroids[cluster];
+        if (centroid && centroid[dim] !== undefined) {
+          centroid[dim] += value;
+        }
       });
     });
     
     // Calculate averages
     centroids.forEach((centroid, cluster) => {
       const count = clusterCounts[cluster];
-      if (count > 0) {
+      if (count > 0 && centroid) {
         centroid.forEach((_, dim) => {
-          centroid[dim] /= count;
+          if (centroid[dim] !== undefined) {
+            centroid[dim] /= count;
+          }
         });
       }
     });
@@ -620,8 +628,12 @@ export class TopicService {
   private calculateEuclideanDistance(vector1: number[], vector2: number[]): number {
     let sum = 0;
     for (let i = 0; i < vector1.length; i++) {
-      const diff = vector1[i] - vector2[i];
-      sum += diff * diff;
+      const v1 = vector1[i];
+      const v2 = vector2[i];
+      if (v1 !== undefined && v2 !== undefined) {
+        const diff = v1 - v2;
+        sum += diff * diff;
+      }
     }
     return Math.sqrt(sum);
   }
@@ -634,8 +646,10 @@ export class TopicService {
     
     oldCentroids.forEach((oldCentroid, index) => {
       const newCentroid = newCentroids[index];
-      const shift = this.calculateEuclideanDistance(oldCentroid, newCentroid);
-      totalShift += shift;
+      if (newCentroid) {
+        const shift = this.calculateEuclideanDistance(oldCentroid, newCentroid);
+        totalShift += shift;
+      }
     });
     
     return totalShift / oldCentroids.length;
@@ -715,7 +729,10 @@ export class TopicService {
   private calculateCentroid(vectors: number[][]): number[] {
     if (vectors.length === 0) return [];
     
-    const dimensions = vectors[0].length;
+    const firstVector = vectors[0];
+    if (!firstVector) return [];
+    
+    const dimensions = firstVector.length;
     const centroid = Array(dimensions).fill(0);
     
     vectors.forEach(vector => {
@@ -742,9 +759,14 @@ export class TopicService {
     
     for (let i = 0; i < vectors.length; i++) {
       for (let j = i + 1; j < vectors.length; j++) {
+        const vector1 = vectors[i];
+        const vector2 = vectors[j];
+        
+        if (!vector1 || !vector2) continue;
+        
         // Convert to term arrays for cosine similarity
-        const terms1 = vectors[i].map((_, index) => index.toString()).filter((_, index) => vectors[i][index] > 0);
-        const terms2 = vectors[j].map((_, index) => index.toString()).filter((_, index) => vectors[j][index] > 0);
+        const terms1 = vector1.map((_, index) => index.toString()).filter((_, index) => vector1[index] > 0);
+        const terms2 = vector2.map((_, index) => index.toString()).filter((_, index) => vector2[index] > 0);
         
         const similarity = calculateCosineSimilarity(terms1, terms2);
         totalSimilarity += similarity;
@@ -771,14 +793,17 @@ export class TopicService {
     
     vectors.forEach((vector, index) => {
       const id = ids[index];
+      if (!id) return;
+      
       const cluster = assignments.get(id);
       
       if (cluster === undefined) return;
       
       // Calculate intra-cluster distance (a)
-      const sameClusterVectors = vectors.filter((_, i) => 
-        assignments.get(ids[i]) === cluster && i !== index
-      );
+      const sameClusterVectors = vectors.filter((_, i) => {
+        const otherId = ids[i];
+        return otherId && assignments.get(otherId) === cluster && i !== index;
+      });
       
       const intraDistance = sameClusterVectors.length > 0
         ? sameClusterVectors.reduce((sum, otherVector) => 
@@ -791,9 +816,10 @@ export class TopicService {
       
       let minInterDistance = Infinity;
       otherClusters.forEach(otherCluster => {
-        const otherClusterVectors = vectors.filter((_, i) => 
-          assignments.get(ids[i]) === otherCluster
-        );
+        const otherClusterVectors = vectors.filter((_, i) => {
+          const otherId = ids[i];
+          return otherId && assignments.get(otherId) === otherCluster;
+        });
         
         if (otherClusterVectors.length > 0) {
           const avgDistance = otherClusterVectors.reduce((sum, otherVector) => 

@@ -279,3 +279,147 @@ export class ValidationError extends LLMServiceError {
     this.name = 'ValidationError';
   }
 }
+
+/**
+ * Confidence scoring types
+ */
+
+/**
+ * Individual confidence score result for a claim field
+ */
+export interface ConfidenceResult {
+  overallScore: number;
+  components: {
+    sourceAgreement: number;
+    evidenceCount: number;
+    sourceQuality: number;
+    recency: number;
+  };
+  supportingEvidenceCount: number;
+  averageSourceQuality: number;
+  confidenceInterval: {
+    lower: number;
+    upper: number;
+  };
+  uncertainty: number;
+  metadata: {
+    calculationMethod: string;
+    weightingScheme: Record<string, number>;
+    evidenceAnalysis: {
+      agreementRate: number;
+      contradictionCount: number;
+      averageRecency: number;
+    };
+  };
+}
+
+/**
+ * Persona-level confidence assessment
+ */
+export interface PersonaConfidenceAssessment {
+  personaId: string;
+  claimFieldConfidences: Map<string, ConfidenceResult>;
+  overallConfidence: number;
+  weightedAverageConfidence: number;
+  minimumConfidence: number;
+  maximumConfidence: number;
+  confidenceDistribution: {
+    high: number; // Count of claims with confidence > 0.8
+    medium: number; // Count of claims with confidence 0.5-0.8
+    low: number; // Count of claims with confidence < 0.5
+  };
+  recommendation: 'approve' | 'review' | 'reject';
+  riskFactors: string[];
+  strengthIndicators: string[];
+  metadata: {
+    totalClaims: number;
+    evidenceSourceCount: number;
+    averageEvidenceQuality: number;
+    processingTimestamp: Date;
+  };
+  highConfidenceClaims: number;
+  lowConfidenceClaims: number;
+}
+
+/**
+ * Batch confidence processing result
+ */
+export interface BatchConfidenceResult {
+  assessments: Map<string, PersonaConfidenceAssessment>;
+  statistics: {
+    totalPersonas: number;
+    totalClaims: number;
+    averageConfidence: number;
+    confidenceDistribution: {
+      approve: number;
+      review: number;
+      reject: number;
+    };
+    processingTimeMs: number;
+  };
+  errors: Array<{
+    personaId: string;
+    error: string;
+    details?: Record<string, any>;
+  }>;
+}
+
+/**
+ * Calibration data point for confidence scoring
+ */
+export interface CalibrationDataPoint {
+  claimText: string;
+  predictedConfidence: number;
+  actualAccuracy: number;
+  evidenceCount: number;
+  humanConfidence: number;
+  timestamp: Date;
+}
+
+/**
+ * Calibration analysis results
+ */
+export interface CalibrationAnalysis {
+  meanAbsoluteError: number;
+  rootMeanSquareError: number;
+  correlation: number;
+  calibrationCurve: Array<{
+    predictedConfidence: number;
+    actualAccuracy: number;
+    count: number;
+  }>;
+  reliability: number; // Measure of prediction consistency
+  resolution: number; // Ability to discriminate between correct/incorrect
+  dataPointCount: number;
+}
+
+/**
+ * Configuration for confidence scoring system
+ */
+export interface ConfidenceConfig {
+  sourceAgreementWeight: number;
+  evidenceCountWeight: number;
+  sourceQualityWeight: number;
+  recencyWeight: number;
+  semanticSimilarityThreshold: number;
+  contradictionPenalty: number;
+  recencyDecayHalfLife: number; // Days
+  uncertaintyFactors: {
+    insufficientEvidence: number;
+    conflictingEvidence: number;
+    lowQualitySources: number;
+  };
+}
+
+/**
+ * Cache statistics for confidence calculations
+ */
+export interface CacheStatistics {
+  size: number;
+  hitRate: number;
+  totalRequests: number;
+  cacheHits: number;
+  cacheMisses: number;
+  averageCalculationTime: number;
+  memoryUsage: number;
+}
