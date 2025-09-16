@@ -7,6 +7,8 @@ import { EvidenceRepository } from '../repositories/EvidenceRepository';
 import { SourceRepository } from '../repositories/SourceRepository';
 import { unitizeText, validateUnitization, type TextUnit, type UnitizationConfig } from '../utils/textUtils';
 import { DeduplicationService, type DeduplicationConfig, type DeduplicationResult } from './DeduplicationService';
+import { QualityService, type EvidenceForQuality, type QualityConfig } from './QualityService';
+import { TopicService, type TopicExtractionConfig, type EvidenceUnitForTopics, type ExtractedTopic } from './TopicService';
 import type { EvidenceUnit, Source } from '@prisma/client';
 
 /**
@@ -18,7 +20,10 @@ export interface EvidenceProcessingConfig extends UnitizationConfig {
   maxUnitsPerSource: number;      // Maximum units to extract per source
   deduplicationEnabled: boolean;  // Enable content deduplication
   metadataExtraction: boolean;    // Extract metadata from units
+  topicExtractionEnabled: boolean; // Enable topic extraction
   deduplicationConfig: Partial<DeduplicationConfig>; // Deduplication settings
+  qualityConfig: Partial<QualityConfig>; // Quality assessment configuration
+  topicConfig: Partial<TopicExtractionConfig>; // Topic extraction configuration
 }
 
 export const DEFAULT_PROCESSING_CONFIG: EvidenceProcessingConfig = {
@@ -34,10 +39,20 @@ export const DEFAULT_PROCESSING_CONFIG: EvidenceProcessingConfig = {
   maxUnitsPerSource: 100,
   deduplicationEnabled: true,
   metadataExtraction: true,
+  topicExtractionEnabled: true,
   deduplicationConfig: {
     cosineSimilarityThreshold: 0.85,
     strategy: 'keep_highest_quality',
     useFastPrefiltering: true,
+  },
+  qualityConfig: {
+    // Use default quality configuration
+    performanceMode: 'balanced',
+  },
+  topicConfig: {
+    topicsPerUnit: 4,
+    useCorpusTfIdf: false, // Start with simple mode for performance
+    clusteringEnabled: false, // Disable clustering for individual processing
   },
 };
 
@@ -89,12 +104,18 @@ export interface ProcessingResult {
  */
 export class EvidenceService {
   private deduplicationService: DeduplicationService;
+  private qualityService: QualityService;
+  private topicService: TopicService;
 
   constructor(
     private evidenceRepository: EvidenceRepository,
-    private sourceRepository: SourceRepository
+    private sourceRepository: SourceRepository,
+    qualityConfig?: Partial<QualityConfig>,
+    topicConfig?: Partial<TopicExtractionConfig>
   ) {
     this.deduplicationService = new DeduplicationService();
+    this.qualityService = new QualityService(qualityConfig);
+    this.topicService = new TopicService(topicConfig);
   }
 
   /**
@@ -234,11 +255,19 @@ export class EvidenceService {
     // Calculate confidence score based on text properties
     const confidenceScore = this.calculateConfidenceScore(unit, fullText);
     
-    // Calculate quality score based on content analysis
-    const qualityScore = this.calculateQualityScore(unit);
+    // Get source information for quality assessment
+    const source = await this.sourceRepository.findById(sourceId);
+    if (!source) {
+      throw new Error(`Source not found: ${sourceId}`);
+    }
     
-    // Extract topic candidates
-    const topicCandidates = this.extractTopicCandidates(unit);
+    // Calculate quality score using comprehensive QualityService
+    const qualityScore = await this.calculateQualityScore(unit, source);
+    
+    // Extract topic candidates using TopicService
+    const topicCandidates = config.topicExtractionEnabled 
+      ? await this.extractTopicCandidatesAdvanced(unit, sourceId, config)
+      : this.extractTopicCandidatesSimple(unit);
     
     // Extract metadata if enabled
     const metadata = config.metadataExtraction 
@@ -307,77 +336,116 @@ export class EvidenceService {
   }
 
   /**
-   * Calculate quality score for a text unit
-   * Based on content characteristics and readability
+   * Calculate quality score for a text unit using comprehensive QualityService
    */
-  private calculateQualityScore(unit: TextUnit): number {
-    let score = 0.4; // Base score
-    
-    // Check for meaningful content patterns
-    const text = unit.text.toLowerCase();
-    
-    // Has actual sentences (25% weight)
-    if (unit.sentenceCount >= 1 && /[.!?]/.test(unit.text)) {
-      score += 0.25;
+  private async calculateQualityScore(unit: TextUnit, source: Source): Promise<number> {
+    // Parse source metadata
+    let sourceMetadata: Record<string, any> = {};
+    try {
+      sourceMetadata = JSON.parse(source.metadata);
+    } catch {
+      sourceMetadata = {};
     }
-    
-    // Reasonable word count (20% weight)
-    if (unit.wordCount >= 15 && unit.wordCount <= 80) {
-      score += 0.2;
-    } else if (unit.wordCount >= 10 && unit.wordCount <= 100) {
-      score += 0.1;
-    }
-    
-    // Contains substantive words (20% weight)
-    const substantiveWords = /\b(the|and|or|but|however|therefore|because|since|when|where|what|who|which|that|this|these|those|could|would|should|might|may|can|will|shall)\b/gi;
-    const substantiveCount = (unit.text.match(substantiveWords) || []).length;
-    if (substantiveCount >= 3) {
-      score += 0.2;
-    } else if (substantiveCount >= 1) {
-      score += 0.1;
-    }
-    
-    // Avoid repetitive content (15% weight)
-    const words = text.split(/\s+/);
-    const uniqueWords = new Set(words);
-    const uniquenessRatio = uniqueWords.size / words.length;
-    if (uniquenessRatio >= 0.7) {
-      score += 0.15;
-    } else if (uniquenessRatio >= 0.5) {
-      score += 0.07;
-    }
-    
-    // Penalize problematic patterns (10% weight)
-    let penalties = 0;
-    
-    // Too much punctuation
-    const punctuationRatio = (text.match(/[^\w\s]/g) || []).length / text.length;
-    if (punctuationRatio > 0.2) penalties += 0.05;
-    
-    // Too many numbers
-    const numberRatio = (text.match(/\d/g) || []).length / text.length;
-    if (numberRatio > 0.3) penalties += 0.05;
-    
-    // All caps content
-    const capsRatio = (text.match(/[A-Z]/g) || []).length / text.length;
-    if (capsRatio > 0.5) penalties += 0.05;
-    
-    score = Math.max(0.1, score - penalties);
-    
-    // Boost for good structure (10% weight)
-    if (unit.hasCompleteStart && unit.hasCompleteEnd && unit.sentenceCount >= 2) {
-      score += 0.1;
-    }
-    
-    return Math.min(1.0, Math.max(0.0, score));
+
+    // Convert TextUnit and Source to EvidenceForQuality format
+    const evidenceForQuality: EvidenceForQuality = {
+      id: `temp-${Date.now()}`, // Temporary ID for processing
+      text: unit.text,
+      sourceId: source.id,
+      startIndex: unit.startIndex,
+      endIndex: unit.endIndex,
+      wordCount: unit.wordCount,
+      sentenceCount: unit.sentenceCount,
+      hasCompleteStart: unit.hasCompleteStart,
+      hasCompleteEnd: unit.hasCompleteEnd,
+      metadata: {
+        topics: this.extractTopicCandidatesSimple(unit),
+        keywords: this.extractKeywords(unit.text),
+        context: 'evidence_processing',
+      },
+      source: {
+        id: source.id,
+        url: source.url,
+        domain: this.extractDomainFromUrl(source.url),
+        tier: source.tier as any,
+        title: source.title || undefined,
+        author: sourceMetadata.author || undefined,
+        publishedAt: source.publishedAt || undefined,
+        fetchedAt: source.fetchedAt,
+        metadata: sourceMetadata,
+      },
+    };
+
+    // Assess quality using comprehensive scoring
+    const assessment = await this.qualityService.assessQuality(evidenceForQuality);
+    return assessment.score;
   }
 
   /**
-   * Extract potential topic candidates from text unit
+   * Extract keywords from text for quality assessment
    */
-  private extractTopicCandidates(unit: TextUnit): string[] {
+  private extractKeywords(text: string): string[] {
+    // Simple keyword extraction - could be enhanced with NLP
+    const words = text.toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(word => word.length > 3 && word.length < 15);
+    
+    // Remove common stop words
+    const stopWords = new Set(['this', 'that', 'with', 'have', 'will', 'from', 'they', 'know', 'want', 'been', 'good', 'much', 'some', 'time', 'very', 'when', 'come', 'here', 'just', 'like', 'long', 'make', 'many', 'over', 'such', 'take', 'than', 'them', 'well', 'were']);
+    
+    return words.filter(word => !stopWords.has(word)).slice(0, 10);
+  }
+
+  /**
+   * Extract domain from URL
+   */
+  private extractDomainFromUrl(url: string): string {
+    try {
+      return new URL(url).hostname.toLowerCase();
+    } catch {
+      const match = url.match(/^https?:\/\/([^\/]+)/i);
+      return match?.[1]?.toLowerCase() || 'unknown';
+    }
+  }
+
+  /**
+   * Extract potential topic candidates using advanced TopicService
+   */
+  private async extractTopicCandidatesAdvanced(
+    unit: TextUnit, 
+    sourceId: string, 
+    config: EvidenceProcessingConfig
+  ): Promise<string[]> {
+    try {
+      // Update topic service configuration
+      if (config.topicConfig) {
+        this.topicService.updateConfig(config.topicConfig);
+      }
+      
+      // Create evidence unit for topic extraction
+      const evidenceUnit: EvidenceUnitForTopics = {
+        id: `temp_${Date.now()}_${Math.random()}`,
+        text: unit.text,
+        sourceId,
+      };
+      
+      // Extract topics using TopicService
+      const result = await this.topicService.extractTopics(evidenceUnit);
+      
+      // Return top keywords as topic candidates
+      return result.topics.map(topic => topic.keyword);
+    } catch (error) {
+      console.warn('Advanced topic extraction failed, falling back to simple extraction:', error);
+      return this.extractTopicCandidatesSimple(unit);
+    }
+  }
+
+  /**
+   * Extract potential topic candidates from text unit (simple approach)
+   */
+  private extractTopicCandidatesSimple(unit: TextUnit): string[] {
     const text = unit.text.toLowerCase();
-    const candidates: string[] = [];
     
     // Extract noun phrases (simplified approach)
     const nounPhrases = text.match(/\b[a-z]+(?:\s+[a-z]+){0,2}\b/g) || [];
